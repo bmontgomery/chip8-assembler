@@ -27,7 +27,17 @@
       for(commandIndex = 0; commandIndex < this.commands.length; commandIndex++) {
         currentCommand = this.commands[commandIndex];
 
-        this.output.push(currentCommand.opcode);
+        // each output is 1 byte in length, but most opcodes are 2 bytes in length, so
+        // they need to be split
+
+        // push the most significant byte to the output (only if there are 2 bytes in 
+        // the opcode)
+        if(currentCommand.bytes === 2) {
+          this.output.push((currentCommand.opcode & 0xFF00) >> 8);
+        }
+
+        // push the least significant byte to the output
+        this.output.push(currentCommand.opcode & 0x00FF);
       }
     };
 
@@ -42,6 +52,9 @@
 
         // build an object representing the current command
         command = {};
+
+        // by default, commands take up 2 bytes.
+        command.bytes = 2;
 
         // set the target memory location
         command.address = memoryPointer;
@@ -88,6 +101,10 @@
         switch(currentInstruction.toUpperCase()) {
           case 'CLS':
             currentCommand.opcode = 0x00E0;
+            break;
+
+          case 'RET':
+            currentCommand.opcode = 0x00EE;
             break;
 
           case 'SYS':
@@ -211,11 +228,19 @@
             compileIndexOpcode(currentCommand, 0xE0A1);
             break;    
 
-          // case 'DB':
-          //   // todo: implement
-          //   break;
+          case 'DB':
+            // this is a literal byte to write to the chip8's memory
+            var value = getValue(currentCommand.resultArgs[1]);
+
+            // this command is only 1 byte long (as opposed to the usual 2 bytes)
+            currentCommand.bytes = 1;
+
+            // there really is no opcode, just the literal value written into the program
+            currentCommand.opcode = value;
+            break;
 
           case 'DW':
+            // there really is no opcode, just the literal value written into the program
             currentCommand.opcode = getValue(currentCommand.args[1]);
             break;
         }  
